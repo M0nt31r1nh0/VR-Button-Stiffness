@@ -17,7 +17,7 @@ public class ButtonPressLogger : MonoBehaviour
     [Tooltip("Set this per button (0..8)")]
     public int buttonId = 0;
 
-    private MotionGainButton motionGainButton;
+    private ConfigurableJoint configurableJoint;
 
     private bool pressStarted = false;
     private bool goalReached = false;
@@ -41,7 +41,12 @@ public class ButtonPressLogger : MonoBehaviour
 
     private void Start()
     {
-        motionGainButton = GetComponentInParent<MotionGainButton>(); // ok if present; otherwise gain logs as -1
+        configurableJoint = GetComponentInParent<ConfigurableJoint>();
+
+        if (configurableJoint == null) // para testar
+        {
+            Debug.LogWarning($"[Logger:{name}] No ConfigurableJoint found. SpringY will be logged as -1.");
+        }
 
         EnsureCsvInitialized();
 
@@ -64,7 +69,7 @@ public class ButtonPressLogger : MonoBehaviour
             string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
             csvPath = Path.Combine(Application.persistentDataPath, $"buttonLog_{timestamp}.csv");
 
-            File.WriteAllText(csvPath, "Trial,ButtonId,TimeToGoal,MinButtonLocalY,MotionGain,DateTime\n");
+            File.WriteAllText(csvPath, "Trial,ButtonId,TimeToGoal,MinButtonLocalY,SpringY,DateTime\n");
 
             csvInitialized = true;
             Debug.Log("[Logger] Saving ONE NEW CSV for this run to: " + csvPath);
@@ -112,7 +117,13 @@ public class ButtonPressLogger : MonoBehaviour
     {
         EnsureCsvInitialized();
 
-        float gainValue = (motionGainButton != null) ? motionGainButton.motionGain : -1f;
+        float springY = -1f;
+
+        if (configurableJoint != null)
+        {
+            JointDrive yDrive = configurableJoint.yDrive;
+            springY = yDrive.positionSpring;
+        }
 
         int trialNumber;
         lock (fileLock)
@@ -120,7 +131,7 @@ public class ButtonPressLogger : MonoBehaviour
             globalTrialIndex++;
             trialNumber = globalTrialIndex;
 
-            string line = $"{trialNumber},{buttonId},{timeToGoal:F4},{minY:F4},{gainValue},{System.DateTime.Now}\n";
+            string line = $"{trialNumber},{buttonId},{timeToGoal:F4},{minY:F4},{springY},{System.DateTime.Now}\n";
             File.AppendAllText(csvPath, line);
         }
     }

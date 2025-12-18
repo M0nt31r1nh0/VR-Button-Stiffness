@@ -20,6 +20,11 @@ public class SimonGameManager9 : MonoBehaviour
     [SerializeField] private float gapDuration = 0.15f;
     [SerializeField] private float startDelay = 0.5f;
 
+    [Header("Experiment Control")]
+    [SerializeField] private int maxRounds = 2;
+
+    private int currentRound = 0;
+
     private enum GameMode { Idle, Listening, Playing }
     private GameMode gameMode = GameMode.Idle;
 
@@ -47,6 +52,7 @@ public class SimonGameManager9 : MonoBehaviour
     public void Play()
     {
         if (playButton != null) playButton.SetActive(false);
+        currentRound = 0;
         StartNewRound();
     }
 
@@ -62,6 +68,13 @@ public class SimonGameManager9 : MonoBehaviour
         );
 
         roundRoutine = StartCoroutine(PlayRoundSequence());
+    }
+
+    private void EndSimonGame()
+    {
+        Debug.Log("[Simon] Finished all rounds for this button.");
+
+        gameMode = GameMode.Idle;
     }
 
     private IEnumerator PlayRoundSequence()
@@ -104,7 +117,16 @@ public class SimonGameManager9 : MonoBehaviour
             // Completed 3 presses → start a new round
             if (currentIndex >= roundSequence.Count)
             {
-                StartNewRound();
+                currentRound++;
+
+                if (currentRound >= maxRounds)
+                {
+                    EndSimonGame();
+                }
+                else
+                {
+                    StartNewRound();
+                }
             }
         }
         else
