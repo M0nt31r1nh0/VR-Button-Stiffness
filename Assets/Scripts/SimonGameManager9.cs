@@ -17,8 +17,8 @@ public class SimonGameManager9 : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField] private float flashDuration = 0.2f;
-    [SerializeField] private float gapDuration = 0.15f;
-    [SerializeField] private float startDelay = 0.5f;
+    [SerializeField] private float gapDuration = 0.3f;
+    [SerializeField] private float startDelay = 1.0f;
 
     [Header("Experiment Control")]
     [SerializeField] private int maxRounds = 2;
