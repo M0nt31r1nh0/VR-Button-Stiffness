@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "VR-project.slnx"
+    "dotnet.defaultSolution": "Lab 1 - test 2.slnx"
 }

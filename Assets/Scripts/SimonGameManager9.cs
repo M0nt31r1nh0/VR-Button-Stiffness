@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class SimonGameManager9 : MonoBehaviour
 {
@@ -9,7 +10,9 @@ public class SimonGameManager9 : MonoBehaviour
     [SerializeField] private SimonButton[] buttons = new SimonButton[9];
 
     [Header("UI")]
+    [SerializeField] private TextMeshProUGUI trialLabel;
     [SerializeField] private GameObject playButton;
+    [SerializeField] private GameObject nextButton;
 
     [Header("Round Rules")]
     [SerializeField] private int roundLength = 3;   // exactly 3 flashes per round
@@ -46,12 +49,14 @@ public class SimonGameManager9 : MonoBehaviour
         }
 
         gameMode = GameMode.Idle;
-        if (playButton != null) playButton.SetActive(true);
+        playButton.SetActive(true);
+        trialLabel.gameObject.SetActive(false);
     }
 
     public void Play()
     {
-        if (playButton != null) playButton.SetActive(false);
+        playButton.SetActive(false);
+        trialLabel.gameObject.SetActive(true);
         currentRound = 0;
         StartNewRound();
     }
@@ -62,10 +67,16 @@ public class SimonGameManager9 : MonoBehaviour
             StopCoroutine(roundRoutine);
 
         roundSequence = GenerateRoundSequence(
-            roundLength,
+            roundLength + currentRound,
             buttons.Length,
             uniqueWithinRound
         );
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].TurnOff();
+        }
+        trialLabel.text = $"Trial {currentRound + 1} / {maxRounds}";
 
         roundRoutine = StartCoroutine(PlayRoundSequence());
     }
@@ -74,7 +85,13 @@ public class SimonGameManager9 : MonoBehaviour
     {
         Debug.Log("[Simon] Finished all rounds for this button.");
 
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].TurnOff();
+        }
+
         gameMode = GameMode.Idle;
+        nextButton.SetActive(true);
     }
 
     private IEnumerator PlayRoundSequence()
@@ -106,12 +123,9 @@ public class SimonGameManager9 : MonoBehaviour
     public void OnPhysicalButtonPressed(int buttonId)
     {
         if (gameMode != GameMode.Playing) return;
-
-        // Visual feedback on press
-        StartCoroutine(Flash(buttonId));
-
         if (buttonId == roundSequence[currentIndex])
         {
+            buttons[buttonId].TurnOn();
             currentIndex++;
 
             // Completed 3 presses → start a new round
@@ -134,7 +148,8 @@ public class SimonGameManager9 : MonoBehaviour
             Debug.Log("[Simon] Wrong button. Resetting.");
 
             gameMode = GameMode.Idle;
-            if (playButton != null) playButton.SetActive(true);
+            playButton.SetActive(true);
+            trialLabel.gameObject.SetActive(false);
         }
     }
 

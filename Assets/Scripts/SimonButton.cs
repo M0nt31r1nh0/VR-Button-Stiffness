@@ -5,10 +5,6 @@ public class SimonButton : MonoBehaviour
     [Header("Assigned by Manager")]
     [HideInInspector] public int buttonId;
 
-    [Header("Press Detection")]
-    public Transform triggerTransform;
-    public string controllerTag = "Hand";
-
     [Header("Visual Feedback")]
     public Renderer visualRenderer;
     [Range(0f, 1f)] public float offMultiplier = 0.3f;
@@ -58,30 +54,30 @@ public class SimonButton : MonoBehaviour
         else if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
     }
 
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (!pressStarted && collision.collider.CompareTag(controllerTag))
-        {
-            pressStarted = true;
-            goalReached = false;
-        }
-    }
+    // public void OnCollisionEnter(Collision collision)
+    // {
+    //     if (!pressStarted && collision.collider.CompareTag(controllerTag))
+    //     {
+    //         pressStarted = true;
+    //         goalReached = false;
+    //     }
+    // }
 
-    private void OnTriggerEnter(Collider other)
+    public void OnTriggerEnter()
     {
-        if (!pressStarted) return;
-        if (goalReached) return;
-        if (triggerTransform == null) return;
+        // if (!pressStarted) return;
+        // if (goalReached) return;
+        // if (triggerTransform == null) return;
 
-        if (other.transform == triggerTransform)
-        {
+        // if (other.transform == triggerTransform)
+        // {
             goalReached = true;
 
-            manager?.OnPhysicalButtonPressed(buttonId);
+            manager.OnPhysicalButtonPressed(buttonId);
 
             // Reset for next press
             pressStarted = false;
             goalReached = false;
-        }
+        // }
     }
 }
