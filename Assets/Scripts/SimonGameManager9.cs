@@ -5,6 +5,8 @@ using TMPro;
 
 public class SimonGameManager9 : MonoBehaviour
 {
+    public enum HardnessLevel { Soft, Normal, Hard }
+
     [Header("Buttons (exactly 9)")]
     [Tooltip("Assign 9 SimonButton components. Index = buttonId (0..8).")]
     [SerializeField] private SimonButton[] buttons = new SimonButton[9];
@@ -15,18 +17,22 @@ public class SimonGameManager9 : MonoBehaviour
     [SerializeField] private GameObject nextButton;
 
     [Header("Round Rules")]
-    [SerializeField] private int roundLength = 3;   // exactly 3 flashes per round
+    [SerializeField] private int baseSequenceLength = 3;   
     [SerializeField] private bool uniqueWithinRound = true;
 
     [Header("Timing")]
     [SerializeField] private float flashDuration = 0.2f;
     [SerializeField] private float gapDuration = 0.3f;
     [SerializeField] private float startDelay = 1.0f;
+    [SerializeField] private float errorFlashDuration = 0.5f; // New setting for error flash
 
     [Header("Experiment Control")]
-    [SerializeField] private int maxRounds = 2;
+    [SerializeField] private int roundsPerGroup = 2;
+    [SerializeField] private bool shuffleGroupOrder = false;
 
-    private int currentRound = 0;
+    private int currentRoundInGroup = 0;
+    private int currentGroupIndex = 0;
+    private List<HardnessLevel> groupSequence;
 
     private enum GameMode { Idle, Listening, Playing }
     private GameMode gameMode = GameMode.Idle;
@@ -51,14 +57,53 @@ public class SimonGameManager9 : MonoBehaviour
         gameMode = GameMode.Idle;
         playButton.SetActive(true);
         trialLabel.gameObject.SetActive(false);
+        nextButton.SetActive(false);
     }
 
     public void Play()
     {
         playButton.SetActive(false);
         trialLabel.gameObject.SetActive(true);
-        currentRound = 0;
+        nextButton.SetActive(false);
+
+        SetupGroups();
+
+        StartGroup();
+    }
+
+    public void StartGroup()
+    {
+        nextButton.SetActive(false);
+        currentRoundInGroup = 0;
+        HardnessLevel currentHardness = groupSequence[currentGroupIndex];
+        
+        Debug.Log($"[Simon] Starting Group {currentGroupIndex + 1}: {currentHardness}");
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].SetHardness(currentHardness);
+            buttons[i].TurnOff();
+        }
+
         StartNewRound();
+    }
+
+    private void SetupGroups()
+    {
+        groupSequence = new List<HardnessLevel> { HardnessLevel.Soft, HardnessLevel.Normal, HardnessLevel.Hard };
+
+        if (shuffleGroupOrder)
+        {
+            for (int i = 0; i < groupSequence.Count; i++)
+            {
+                HardnessLevel temp = groupSequence[i];
+                int randomIndex = Random.Range(i, groupSequence.Count);
+                groupSequence[i] = groupSequence[randomIndex];
+                groupSequence[randomIndex] = temp;
+            }
+        }
+
+        currentGroupIndex = 0;
     }
 
     private void StartNewRound()
@@ -66,8 +111,10 @@ public class SimonGameManager9 : MonoBehaviour
         if (roundRoutine != null)
             StopCoroutine(roundRoutine);
 
+        int targetLength = baseSequenceLength + currentRoundInGroup;
+        
         roundSequence = GenerateRoundSequence(
-            roundLength + currentRound,
+            targetLength,
             buttons.Length,
             uniqueWithinRound
         );
@@ -76,7 +123,10 @@ public class SimonGameManager9 : MonoBehaviour
         {
             buttons[i].TurnOff();
         }
-        trialLabel.text = $"Trial {currentRound + 1} / {maxRounds}";
+
+        HardnessLevel currentHardness = groupSequence[currentGroupIndex];
+        string buttonLetter = ((char)('A' + currentGroupIndex)).ToString();
+        trialLabel.text = $"Group: {buttonLetter}\nTrial {currentRoundInGroup + 1} / {roundsPerGroup}";
 
         roundRoutine = StartCoroutine(PlayRoundSequence());
     }
@@ -92,6 +142,21 @@ public class SimonGameManager9 : MonoBehaviour
 
         gameMode = GameMode.Idle;
         nextButton.SetActive(true);
+    }
+
+    private void ConcludeGame()
+    {
+        Debug.Log("[Simon] Experiment concluded.");
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].TurnOff();
+        }
+
+        gameMode = GameMode.Idle;
+        trialLabel.gameObject.SetActive(true);
+        trialLabel.text = "Experiment Completed!";
+        nextButton.SetActive(false);
     }
 
     private IEnumerator PlayRoundSequence()
@@ -119,7 +184,29 @@ public class SimonGameManager9 : MonoBehaviour
         buttons[id].TurnOff();
     }
 
-    // Called by SimonButton when a physical press succeeds
+    private IEnumerator FlashErrorAndRetry()
+    {
+        gameMode = GameMode.Listening;
+        
+        Debug.Log("[Simon] Wrong button. Flashing all and replaying sequence.");
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].TurnOn();
+        }
+
+        yield return new WaitForSeconds(errorFlashDuration);
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            buttons[i].TurnOff();
+        }
+
+        yield return new WaitForSeconds(gapDuration);
+
+        roundRoutine = StartCoroutine(PlayRoundSequence());
+    }
+
     public void OnPhysicalButtonPressed(int buttonId)
     {
         if (gameMode != GameMode.Playing) return;
@@ -128,14 +215,22 @@ public class SimonGameManager9 : MonoBehaviour
             buttons[buttonId].TurnOn();
             currentIndex++;
 
-            // Completed 3 presses → start a new round
             if (currentIndex >= roundSequence.Count)
             {
-                currentRound++;
+                currentRoundInGroup++;
 
-                if (currentRound >= maxRounds)
+                if (currentRoundInGroup >= roundsPerGroup)
                 {
-                    EndSimonGame();
+                    currentGroupIndex++;
+
+                    if (currentGroupIndex >= groupSequence.Count)
+                    {
+                        // EndSimonGame();
+                    }
+                    else
+                    {
+                        EndSimonGame();
+                    }
                 }
                 else
                 {
@@ -145,11 +240,11 @@ public class SimonGameManager9 : MonoBehaviour
         }
         else
         {
-            Debug.Log("[Simon] Wrong button. Resetting.");
-
-            gameMode = GameMode.Idle;
-            playButton.SetActive(true);
-            trialLabel.gameObject.SetActive(false);
+            // --- MODIFIED: Error Handling ---
+            if (roundRoutine != null) StopCoroutine(roundRoutine);
+            
+            // Instead of resetting to Idle, we trigger the error flash and retry
+            roundRoutine = StartCoroutine(FlashErrorAndRetry());
         }
     }
 

@@ -5,22 +5,23 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 public class ButtonFollowVisual : MonoBehaviour
 {
+    [Header("Visual Configuration")]
     public Transform visualTarget;
     public Vector3 localAxis;
     public float resetSpeed = 5;
     public float followAngleThreshold = 45;
 
+    [Header("Physics Feel")]
+    [Tooltip("Value of 1 is 1:1 movement. Higher values make the button feel 'heavier' by requiring more hand movement.")]
+    public float pushResistance = 1.0f;
+
     private bool freeze = false;
-
     private Vector3 initialLocalPos;
-
     private Vector3 offset;
     private Transform pokeAttachTransform;
-
     private UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable interactable;
     private bool isFollowing = false;
 
-    // Start is called before the first frame update
     void Start()
     {
         initialLocalPos = visualTarget.localPosition;
@@ -33,20 +34,18 @@ public class ButtonFollowVisual : MonoBehaviour
 
     public void Follow(BaseInteractionEventArgs hover)
     {
-        
-        Debug.Log(hover.interactorObject.GetType().ToString());
-        if(hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
+        if (hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
         {
             UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor interactor = (UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)hover.interactorObject;
 
             isFollowing = true;
-
             pokeAttachTransform = interactor.attachTransform;
+            
             offset = visualTarget.position - pokeAttachTransform.position;
 
             float pokeAngle = Vector3.Angle(offset, visualTarget.TransformDirection(localAxis));
 
-            if(pokeAngle > followAngleThreshold)
+            if (pokeAngle > followAngleThreshold)
             {
                 isFollowing = false;
                 freeze = true;
@@ -56,7 +55,7 @@ public class ButtonFollowVisual : MonoBehaviour
 
     public void Reset(BaseInteractionEventArgs hover)
     {
-        if(hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
+        if (hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
         {
             isFollowing = false;
             freeze = false;
@@ -65,25 +64,29 @@ public class ButtonFollowVisual : MonoBehaviour
 
     public void Freeze(BaseInteractionEventArgs hover)
     {
-        if(hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
+        if (hover.interactorObject is UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor)
         {
             freeze = true;
         }
     }
 
-    // Update is called once per frame
     void Update()
     {
-
-        if(freeze)
+        if (freeze)
             return;
 
-        if(isFollowing)
+        if (isFollowing)
         {
-            Vector3 localTargetPosition = visualTarget.InverseTransformPoint(pokeAttachTransform.position + offset);
-            Vector3 constrainedLocalTargetPosition = Vector3.Project(localTargetPosition, localAxis);
+            Vector3 targetWorldPos = pokeAttachTransform.position + offset;
+            Vector3 targetLocalPos = visualTarget.parent != null 
+                ? visualTarget.parent.InverseTransformPoint(targetWorldPos) 
+                : targetWorldPos;
+            Vector3 moveDelta = targetLocalPos - initialLocalPos;
+            Vector3 projectedDelta = Vector3.Project(moveDelta, localAxis);
 
-            visualTarget.position = visualTarget.TransformPoint(constrainedLocalTargetPosition);
+            Vector3 weightedDelta = projectedDelta / Mathf.Max(1f, pushResistance);
+
+            visualTarget.localPosition = initialLocalPos + weightedDelta;
         }
         else
         {

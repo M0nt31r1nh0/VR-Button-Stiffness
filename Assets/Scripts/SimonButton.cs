@@ -9,6 +9,11 @@ public class SimonButton : MonoBehaviour
     public Renderer visualRenderer;
     [Range(0f, 1f)] public float offMultiplier = 0.3f;
 
+    [Header("Hardness Settings")]
+    [SerializeField] private float resistanceSoft = 1.0f;
+    [SerializeField] private float resistanceNormal = 2.0f;
+    [SerializeField] private float resistanceHard = 3.0f;
+
     private SimonGameManager9 manager;
 
     private bool pressStarted = false;
@@ -16,10 +21,23 @@ public class SimonButton : MonoBehaviour
 
     private Color baseColor;
 
+    private ButtonFollowVisual visualScript;
+
     public void Init(SimonGameManager9 gm, int id)
     {
         manager = gm;
         buttonId = id;
+
+        Transform child = transform.Find("Interactable"); 
+
+        if (child != null)
+        {
+            visualScript = child.GetComponent<ButtonFollowVisual>();
+        }
+        else
+        {
+            Debug.LogError($"[SimonButton] Could not find child named 'Interactable' on button {buttonId}!");
+        }
 
         CacheBaseColor();
         TurnOff();
@@ -54,6 +72,34 @@ public class SimonButton : MonoBehaviour
         else if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
     }
 
+    public void SetHardness(SimonGameManager9.HardnessLevel level)
+    {
+        if (visualScript == null)
+        {
+            Debug.LogError($"[SimonButton] No ButtonFollowVisual found on button {buttonId}");
+            return;
+        }
+
+        float newResistance = resistanceNormal;
+
+        switch (level)
+        {
+            case SimonGameManager9.HardnessLevel.Soft:
+                newResistance = resistanceSoft;
+                break;
+            case SimonGameManager9.HardnessLevel.Normal:
+                newResistance = resistanceNormal;
+                break;
+            case SimonGameManager9.HardnessLevel.Hard:
+                newResistance = resistanceHard;
+                break;
+        }
+
+        visualScript.pushResistance = newResistance;
+
+        Debug.Log($"[SimonButton] Button {buttonId} set to {level} (Resistance: {newResistance})");
+    }
+
     // public void OnCollisionEnter(Collision collision)
     // {
     //     if (!pressStarted && collision.collider.CompareTag(controllerTag))
@@ -71,13 +117,13 @@ public class SimonButton : MonoBehaviour
 
         // if (other.transform == triggerTransform)
         // {
-            goalReached = true;
+        goalReached = true;
 
-            manager.OnPhysicalButtonPressed(buttonId);
+        manager.OnPhysicalButtonPressed(buttonId);
 
-            // Reset for next press
-            pressStarted = false;
-            goalReached = false;
+        // Reset for next press
+        pressStarted = false;
+        goalReached = false;
         // }
     }
 }
